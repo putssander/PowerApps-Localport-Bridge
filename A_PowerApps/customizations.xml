@@ -1,0 +1,166 @@
+<ImportExportXml xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" OrganizationVersion="9.2.25111.158" OrganizationSchemaType="Standard" CRMServerServiceabilityVersion="9.2.25111.00158">
+  <Entities></Entities>
+  <Roles></Roles>
+  <Workflows>
+    <Workflow WorkflowId="{88c7e81e-f8cb-f011-8544-6045bd6425cf}" Name="TranscriptionPAD_ver6 ">
+      <JsonFileName>/Workflows/TranscriptionPAD_ver6-88C7E81E-F8CB-F011-8544-6045BD6425CF.json</JsonFileName>
+      <Type>1</Type>
+      <Subprocess>0</Subprocess>
+      <Category>6</Category>
+      <Mode>0</Mode>
+      <Scope>4</Scope>
+      <OnDemand>0</OnDemand>
+      <TriggerOnCreate>0</TriggerOnCreate>
+      <TriggerOnDelete>0</TriggerOnDelete>
+      <AsyncAutodelete>0</AsyncAutodelete>
+      <SyncWorkflowLogOnFailure>0</SyncWorkflowLogOnFailure>
+      <StateCode>1</StateCode>
+      <StatusCode>2</StatusCode>
+      <RunAs>1</RunAs>
+      <IsTransacted>1</IsTransacted>
+      <IntroducedVersion>1.0.0.0</IntroducedVersion>
+      <IsCustomizable>1</IsCustomizable>
+      <BusinessProcessType>0</BusinessProcessType>
+      <UIFlowType>2</UIFlowType>
+      <IsCustomProcessingStepAllowedForOtherPublishers>1</IsCustomProcessingStepAllowedForOtherPublishers>
+      <ModernFlowType>0</ModernFlowType>
+      <Metadata>{"clientversion":"2.62.00161.25297","isvalid":true,"$schema":"https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#","schemaVersion":"ROBIN_20211012","containsActiveConnections":false,"containsGptPredictActions":false,"containsActiveCopilotActions":false,"containsActiveWorkQueuesActions":false,"containsActiveLogMessageActions":false,"containsActiveRepairWithAIActions":false,"containsActiveCredentialsActions":false,"multipleRequestsState":0,"scriptType":0,"disableScreenshotCaptureOnError":false,"missingUiElementRepairType":null,"flowTimeout":null,"screenResolution":null,"flowLogsVerbosity":null,"flowGeneratedBy":"PADDesigner"}</Metadata>
+      <Inputs>{"schema":{"required":["FileName","Base64Audio","FolderName"],"properties":{"FileName":{"isOptional":false,"default":"","description":"Dynamic filename from Power Apps\r\n","format":null,"title":"FileName","type":"string","value":""},"Base64Audio":{"isOptional":false,"default":"","description":"Cleaned base64 audio from Power Apps\r\n","format":null,"title":"Base64Audio","type":"string","value":""},"FolderName":{"isOptional":false,"default":"","description":"Local folder path for audio and transcript files","format":null,"title":"FolderName","type":"string","value":""}},"type":"object"}}</Inputs>
+      <Outputs>{"schema":{"properties":{"TranscriptionText":{"default":"","description":"Final transcription text returned to Cloud Flow\r\n","format":null,"title":"TranscriptionText","type":"string","value":null}},"type":"object"}}</Outputs>
+      <Dependencies>{"childFlows":[],"workQueues":[],"environmentVariables":[],"requiredBinaries":["3fcae81e-f8cb-f011-8544-6045bd6425cf","b5cae81e-f8cb-f011-8544-6045bd6425cf","84cae81e-f8cb-f011-8544-6045bd6425cf","5cc8e81e-f8cb-f011-8544-6045bd6425cf"]}</Dependencies>
+      <ConnectionReferences>[]</ConnectionReferences>
+      <Definition>"@@ConnectionString: ''\r\n@@Type: 'Local'\r\n@@DesktopType: 'local'\r\n@@DisplayName: 'Local computer'\r\nIMPORT 'controlRepo.appmask' AS appmask\r\nIMPORT 'imageRepo.imgrepo' AS imgrepo\r\n@SENSITIVE: []\r\n@INPUT FileName : { 'Description': '''Dynamic filename from Power Apps\r\n''', 'FriendlyName': 'FileName', 'Type': 'String', 'IsOptional': False, 'DefaultValue': '' } \r\n@INPUT Base64Audio : { 'Description': '''Cleaned base64 audio from Power Apps\r\n''', 'FriendlyName': 'Base64Audio', 'Type': 'String', 'IsOptional': False, 'DefaultValue': '' } \r\n@INPUT FolderName : { 'Description': 'Local folder path for audio and transcript files', 'FriendlyName': 'FolderName', 'Type': 'String', 'IsOptional': False, 'DefaultValue': '' } \r\n@OUTPUT TranscriptionText : { 'Description': '''Final transcription text returned to Cloud Flow\r\n''', 'FriendlyName': 'TranscriptionText', 'Type': 'String' } \r\nScripting.RunPowershellScript.RunScript Script: $'''# ============================================\r\n# PowerShell 5.1 – Whisper bridge (simple labels)\r\n#\r\n# From PAD you send:\r\n#   %FileName%    - file name without extension\r\n#   %FolderName%  - folder where files are saved\r\n#   %Base64Audio% - audio in base64\r\n#\r\n# Script does:\r\n#   1. Make a .wav file from base64\r\n#   2. Send .wav to Whisper on port 9000\r\n#   3. Save transcript as .txt\r\n#   4. Print transcript back to PAD\r\n# ============================================\r\n\r\n$ErrorActionPreference = \\'Stop\\'\r\n\r\n# ---------- BASIC SETTINGS ----------\r\n# Change this folder or URL if needed.\r\n$DefaultFolder = \\'C:\\\\WhisperData\\'\r\n$WhisperUrl    = \\'http://127.0.0.1:9000/asr?encode=true&amp;task=transcribe&amp;language=en&amp;output=srt\\'\r\n\r\n# ---------- HELPER: STOP WITH ERROR ----------\r\nfunction Stop-WithError {\r\n    param([string]$Message)\r\n\r\n    Write-Output \\\"ERROR: $Message\\\"\r\n    exit 1\r\n}\r\n\r\n# ---------- HELPER: SEND WAV FILE TO WHISPER ----------\r\nfunction Invoke-WhisperMultipart {\r\n    param(\r\n        [string]$FilePath,\r\n        [string]$Url\r\n    )\r\n\r\n    if (-not (Test-Path -LiteralPath $FilePath)) {\r\n        Stop-WithError \\\"WAV file not found: $FilePath\\\"\r\n    }\r\n\r\n    # Build multipart/form-data body --GPTBUilD---\r\n    $boundary = \\'------------------------\\' + ([System.Guid]::NewGuid().ToString(\\'N\\'))\r\n    $LF       = \\\"`r`n\\\"\r\n    $fileNameOnly = [System.IO.Path]::GetFileName($FilePath)\r\n\r\n    $header =\r\n        \\\"--$boundary$LF\\\" +\r\n        \\\"Content-Disposition: form-data; name=`\\\"audio_file`\\\"; filename=`\\\"$fileNameOnly`\\\"$LF\\\" +\r\n        \\\"Content-Type: audio/wav$LF$LF\\\"\r\n\r\n    $footer = \\\"$LF--$boundary--$LF\\\"\r\n\r\n    $headerBytes = [System.Text.Encoding]::ASCII.GetBytes($header)\r\n    $fileBytes   = [System.IO.File]::ReadAllBytes($FilePath)\r\n    $footerBytes = [System.Text.Encoding]::ASCII.GetBytes($footer)\r\n\r\n    $bodyBytes = New-Object byte[] ($headerBytes.Length + $fileBytes.Length + $footerBytes.Length)\r\n    [Array]::Copy($headerBytes, 0, $bodyBytes, 0, $headerBytes.Length)\r\n    [Array]::Copy($fileBytes,   0, $bodyBytes, $headerBytes.Length, $fileBytes.Length)\r\n    [Array]::Copy($footerBytes, 0, $bodyBytes, $headerBytes.Length + $fileBytes.Length, $footerBytes.Length)\r\n\r\n    $contentType = \\\"multipart/form-data; boundary=$boundary\\\"\r\n\r\n    try {\r\n        $response = Invoke-RestMethod -Uri $Url -Method Post -ContentType $contentType -Body $bodyBytes\r\n    }\r\n    catch {\r\n        Stop-WithError (\\\"Whisper HTTP call failed: \\\" + $_.Exception.Message)\r\n    }\r\n\r\n    return $response\r\n}\r\n\r\n# ============================================\r\n# MAIN SCRIPT\r\n# ============================================\r\n\r\n# ---------- STEP 1: GET VALUES FROM PAD ----------\r\n$FileName    = \\'%FileName%\\'\r\n$FolderName  = \\'C:\\\\WhisperData\\'\r\n$Base64Audio = \\'%Base64Audio%\\'\r\n\r\n# ---------- STEP 2: CHECK BASIC INPUT ----------\r\nif ([string]::IsNullOrWhiteSpace($Base64Audio)) {\r\n    Stop-WithError \\'No Base64Audio value was sent from PAD.\\'\r\n}\r\n\r\nif ([string]::IsNullOrWhiteSpace($FileName)) {\r\n    $FileName = \\'audio_\\' + (Get-Date -Format \\'yyyyMMdd_HHmmss\\')\r\n}\r\n\r\nif ([string]::IsNullOrWhiteSpace($FolderName)) {\r\n    $FolderName = $DefaultFolder\r\n}\r\n\r\n# Make sure folder exists\r\nif (-not (Test-Path -LiteralPath $FolderName)) {\r\n    try {\r\n        New-Item -ItemType Directory -Path $FolderName -Force | Out-Null\r\n    }\r\n    catch {\r\n        Stop-WithError (\\\"Could not create folder: \\\" + $_.Exception.Message)\r\n    }\r\n}\r\n\r\n$wavPath = Join-Path $FolderName ($FileName + \\'.wav\\')\r\n$txtPath = Join-Path $FolderName ($FileName + \\'.txt\\')\r\n\r\n# ---------- STEP 3: BASE64 → WAV ----------\r\n# Remove spaces/newlines before decode\r\n$cleanBase64 = $Base64Audio -replace \\'\\\\s\\',\\'\\'\r\n\r\ntry {\r\n    $wavBytes = [System.Convert]::FromBase64String($cleanBase64)\r\n}\r\ncatch {\r\n    Stop-WithError (\\\"Base64 decode failed: \\\" + $_.Exception.Message)\r\n}\r\n\r\ntry {\r\n    [System.IO.File]::WriteAllBytes($wavPath, $wavBytes)\r\n}\r\ncatch {\r\n    Stop-WithError (\\\"Could not write WAV file: \\\" + $_.Exception.Message)\r\n}\r\n\r\n# ---------- STEP 4: CALL WHISPER ----------\r\n$response = Invoke-WhisperMultipart -FilePath $wavPath -Url $WhisperUrl\r\n\r\n# ---------- STEP 5: GET TEXT FROM RESPONSE ----------\r\n$transcript = $null\r\n\r\nif ($response -is [string]) {\r\n    # Text or SRT\r\n    $transcript = $response\r\n}\r\nelseif ($response -ne $null -and $response.PSObject.Properties.Name -contains \\'text\\') {\r\n    # JSON: { \\\"text\\\": \\\"...\\\" }\r\n    $transcript = $response.text\r\n}\r\nelse {\r\n    # Unknown shape – show raw JSON\r\n    $transcript = ($response | ConvertTo-Json -Compress)\r\n}\r\n\r\nif ([string]::IsNullOrWhiteSpace($transcript)) {\r\n    $transcript = \\'ERROR: Whisper returned empty text.\\'\r\n}\r\n\r\n# ---------- STEP 6: SAVE TRANSCRIPT ----------\r\ntry {\r\n    [System.IO.File]::WriteAllText($txtPath, $transcript, [System.Text.Encoding]::UTF8)\r\n}\r\ncatch {\r\n    $transcript += \\\"`n[Warning: Could not write transcript file: $($_.Exception.Message)]\\\"\r\n}\r\n\r\n# ---------- STEP 7: SEND TEXT BACK TO PAD ----------\r\nWrite-Output $transcript\r\n''' ScriptOutput=&gt; TranscriptFromWhisper\r\nSET TranscriptionText TO TranscriptFromWhisper\r\n"</Definition>
+      <SchemaVersion>2022.07</SchemaVersion>
+      <Claims>[]</Claims>
+      <DesktopFlowModules>[]</DesktopFlowModules>
+      <Credentials>[]</Credentials>
+      <PrimaryEntity>none</PrimaryEntity>
+      <LocalizedNames>
+        <LocalizedName languagecode="1041" description="TranscriptionPAD_ver6 " />
+      </LocalizedNames>
+    </Workflow>
+    <Workflow WorkflowId="{0ef61699-81c6-f011-8544-6045bd6425cf}" Name="AudioToTranscript">
+      <JsonFileName>/Workflows/AudioToTranscript-0EF61699-81C6-F011-8544-6045BD6425CF.json</JsonFileName>
+      <Type>1</Type>
+      <Subprocess>0</Subprocess>
+      <Category>5</Category>
+      <Mode>0</Mode>
+      <Scope>4</Scope>
+      <OnDemand>0</OnDemand>
+      <TriggerOnCreate>0</TriggerOnCreate>
+      <TriggerOnDelete>0</TriggerOnDelete>
+      <AsyncAutodelete>0</AsyncAutodelete>
+      <SyncWorkflowLogOnFailure>0</SyncWorkflowLogOnFailure>
+      <StateCode>1</StateCode>
+      <StatusCode>2</StatusCode>
+      <RunAs>1</RunAs>
+      <IsTransacted>1</IsTransacted>
+      <IntroducedVersion>1.0.0.0</IntroducedVersion>
+      <IsCustomizable>1</IsCustomizable>
+      <BusinessProcessType>0</BusinessProcessType>
+      <IsCustomProcessingStepAllowedForOtherPublishers>1</IsCustomProcessingStepAllowedForOtherPublishers>
+      <ModernFlowType>0</ModernFlowType>
+      <PrimaryEntity>none</PrimaryEntity>
+      <LocalizedNames>
+        <LocalizedName languagecode="1041" description="AudioToTranscript" />
+      </LocalizedNames>
+    </Workflow>
+  </Workflows>
+  <FieldSecurityProfiles></FieldSecurityProfiles>
+  <Templates />
+  <EntityMaps />
+  <EntityRelationships />
+  <OrganizationSettings />
+  <optionsets />
+  <CustomControls />
+  <EntityDataProviders />
+  <CanvasApps>
+    <CanvasApp>
+      <Name>new_appaudiototranscript_03379</Name>
+      <AppVersion>2025-11-28T03:04:41Z</AppVersion>
+      <Status>Ready</Status>
+      <CreatedByClientVersion>3.25111.6.0</CreatedByClientVersion>
+      <MinClientVersion>3.25111.6.0</MinClientVersion>
+      <Tags>{"primaryDeviceWidth":"640","primaryDeviceHeight":"1136","supportsPortrait":"true","supportsLandscape":"true","primaryFormFactor":"Phone","showStatusBar":"false","publisherVersion":"3.25111.6","minimumRequiredApiVersion":"2.2.0","hasComponent":"false","hasUnlockedComponent":"false","isUnifiedRootApp":"false","sienaVersion":"20251124T055122Z-3.25111.6.0"}</Tags>
+      <IsCdsUpgraded>0</IsCdsUpgraded>
+      <GalleryItemId xsi:nil="true"></GalleryItemId>
+      <BackgroundColor>RGBA(0,176,240,1)</BackgroundColor>
+      <DisplayName>App_AudioToTranscript</DisplayName>
+      <Description>This works now. varTranscrpt now works and displays the transcribed text in the box in times chunks. label box needs to be scrollable</Description>
+      <CommitMessage xsi:nil="true"></CommitMessage>
+      <Publisher xsi:nil="true"></Publisher>
+      <AuthorizationReferences>[]</AuthorizationReferences>
+      <ConnectionReferences>{"5a0d4827-5518-4f07-b2f1-c7381c9e1d4f":{"id":"/providers/microsoft.powerapps/apis/shared_sharepointonline","displayName":"SharePoint","iconUri":"https://conn-afd-prod-endpoint-bmc9bqahasf3grgk.b01.azurefd.net/v1.0.1769/1.0.1769.4352/sharepointonline/icon.png","dataSources":["AUdio"],"dependencies":[],"dependents":["a9159fd9-d453-4291-b42e-7bae347aee89"],"parameterHints":{},"parameterHintsV2":{},"isOnPremiseConnection":false,"bypassConsent":false,"dataSets":{"https://johoce.sharepoint.com/sites/Data_Recorder":{"dataSources":{"AUdio":{"tableName":"5859391e-eecf-4745-afb0-9387a5730c5c"}}}},"apiTier":"Standard"},"cd243600-8362-467a-bff4-9d4dcfb97459":{"id":"/providers/microsoft.powerapps/apis/shared_excel","displayName":"Excel","iconUri":"https://conn-afd-prod-endpoint-bmc9bqahasf3grgk.b01.azurefd.net/releases/v1.0.1777/1.0.1777.4410/excel/icon.png","dataSources":["tbl_U1S1","tbl_U2S2","tbl_U1S3","tbl_U1S4"],"dependencies":["fe59eede-79d5-40a2-ae9a-be1fa94c222c"],"dependents":[],"parameterHints":{"fe59eede-79d5-40a2-ae9a-be1fa94c222c":{"value":"fileSource"}},"parameterHintsV2":{"fileSource":{"value":"fe59eede-79d5-40a2-ae9a-be1fa94c222c"}},"isOnPremiseConnection":false,"bypassConsent":false,"dataSets":{"b!zmTYrcgOCEC74YH3G5Lvsf7ynJnseEpHirBOhm_BskoTlwQsQq19RLYfzsONwPeU.01LHO6JBUNHGPU677XHFGYAHROOVJ2OHGJ":{"dataSources":{"tbl_U1S1":{"tableName":"tbl_U1S1"}}},"b!zmTYrcgOCEC74YH3G5Lvsf7ynJnseEpHirBOhm_BskoTlwQsQq19RLYfzsONwPeU.01LHO6JBSLVKRX2VYJT5GZXVPHOJ4SPKET":{"dataSources":{"tbl_U2S2":{"tableName":"tbl_U2S2"}}},"b!zmTYrcgOCEC74YH3G5Lvsf7ynJnseEpHirBOhm_BskoTlwQsQq19RLYfzsONwPeU.01LHO6JBWUBBUGYJAYFVA2YXWX2L6B63L4":{"dataSources":{"tbl_U1S3":{"tableName":"tbl_U1S3"}}},"b!zmTYrcgOCEC74YH3G5Lvsf7ynJnseEpHirBOhm_BskoTlwQsQq19RLYfzsONwPeU.01LHO6JBXY4NOKTTZ7LRAI4CDZ2EUFCLD5":{"dataSources":{"tbl_U1S4":{"tableName":"tbl_U1S4"}}}},"apiTier":"Standard","actions":["providers/PowerPlatform.Governance/Operations/Read"]},"fe59eede-79d5-40a2-ae9a-be1fa94c222c":{"id":"/providers/microsoft.powerapps/apis/shared_onedriveforbusiness","displayName":"OneDrive for Business","iconUri":"https://conn-afd-prod-endpoint-bmc9bqahasf3grgk.b01.azurefd.net/v1.0.1775/1.0.1775.4393/onedriveforbusiness/icon.png","dataSources":[],"dependencies":[],"dependents":["cd243600-8362-467a-bff4-9d4dcfb97459"],"parameterHints":{},"parameterHintsV2":{},"isOnPremiseConnection":false,"bypassConsent":false,"dataSets":{},"apiTier":"Standard"},"a9159fd9-d453-4291-b42e-7bae347aee89":{"id":"/providers/microsoft.powerapps/apis/shared_logicflows","displayName":"Logic flows","iconUri":"https://conn-afd-prod-endpoint-bmc9bqahasf3grgk.b01.azurefd.net/v1.0.1774/1.0.1774.4397/logicflows/icon.png","dataSources":["AudioToTranscript"],"dependencies":["5a0d4827-5518-4f07-b2f1-c7381c9e1d4f","5e78c05f-b245-41db-887f-7bb72f6c0d83"],"dependents":[],"parameterHints":{"workflowName":{"value":"b7fdb333-1dba-4047-8221-acd9324f62f2"},"workflowEntityId":{"value":"0ef61699-81c6-f011-8544-6045bd6425cf"},"workflowDisplayName":{"value":"AudioToTranscript"},"5a0d4827-5518-4f07-b2f1-c7381c9e1d4f":{"value":"shared_sharepointonline"},"5e78c05f-b245-41db-887f-7bb72f6c0d83":{"value":"shared_uiflow"}},"parameterHintsV2":{"workflowName":{"value":"b7fdb333-1dba-4047-8221-acd9324f62f2"},"workflowEntityId":{"value":"0ef61699-81c6-f011-8544-6045bd6425cf"},"workflowDisplayName":{"value":"AudioToTranscript"},"shared_sharepointonline":{"value":"5a0d4827-5518-4f07-b2f1-c7381c9e1d4f"},"shared_uiflow":{"value":"5e78c05f-b245-41db-887f-7bb72f6c0d83"}},"isOnPremiseConnection":false,"bypassConsent":false,"dataSets":{},"apiTier":"Standard","actions":["Run"]},"5e78c05f-b245-41db-887f-7bb72f6c0d83":{"id":"/providers/microsoft.powerapps/apis/shared_uiflow","displayName":"Desktop flows","iconUri":"https://conn-afd-prod-endpoint-bmc9bqahasf3grgk.b01.azurefd.net/v1.0.1778/1.0.1778.4417/uiflow/icon.png","dataSources":[],"dependencies":[],"dependents":["a9159fd9-d453-4291-b42e-7bae347aee89"],"parameterHints":{},"parameterHintsV2":{},"isOnPremiseConnection":false,"bypassConsent":false,"dataSets":{},"apiTier":"Premium","authenticationType":"azureRelay"}}</ConnectionReferences>
+      <DatabaseReferences>{}</DatabaseReferences>
+      <AppComponents>[]</AppComponents>
+      <AppComponentDependencies>[]</AppComponentDependencies>
+      <CanConsumeAppPass>1</CanConsumeAppPass>
+      <CanvasAppType>0</CanvasAppType>
+      <BypassConsent>0</BypassConsent>
+      <AdminControlBypassConsent>0</AdminControlBypassConsent>
+      <EmbeddedApp xsi:nil="true"></EmbeddedApp>
+      <IntroducedVersion>1.0</IntroducedVersion>
+      <CdsDependencies>{"cdsdependencies":[{"dependencyid":"0ef61699-81c6-f011-8544-6045bd6425cf","componenttype":29,"componenttypeplatformname":"Workflow"}]}</CdsDependencies>
+      <IsCustomizable>1</IsCustomizable>
+      <BackgroundImageUri>/CanvasApps/new_appaudiototranscript_03379_BackgroundImageUri</BackgroundImageUri>
+      <DocumentUri>/CanvasApps/new_appaudiototranscript_03379_DocumentUri.msapp</DocumentUri>
+      <AdditionalUris>
+        <AdditionalUri>/CanvasApps/new_appaudiototranscript_03379_AdditionalUris0_identity.json</AdditionalUri>
+      </AdditionalUris>
+    </CanvasApp>
+    <CanvasApp>
+      <Name>new_whispertotext_6b00f</Name>
+      <AppVersion>2025-11-06T03:40:21Z</AppVersion>
+      <Status>Ready</Status>
+      <CreatedByClientVersion>3.25103.13.0</CreatedByClientVersion>
+      <MinClientVersion>3.25103.13.0</MinClientVersion>
+      <Tags>{"primaryDeviceWidth":"1366","primaryDeviceHeight":"768","supportsPortrait":"true","supportsLandscape":"true","primaryFormFactor":"Tablet","showStatusBar":"false","publisherVersion":"3.25103.13","minimumRequiredApiVersion":"2.2.0","hasComponent":"false","hasUnlockedComponent":"false","isUnifiedRootApp":"false"}</Tags>
+      <IsCdsUpgraded>0</IsCdsUpgraded>
+      <GalleryItemId xsi:nil="true"></GalleryItemId>
+      <BackgroundColor>RGBA(0,176,240,1)</BackgroundColor>
+      <DisplayName>whisperToText</DisplayName>
+      <Description xsi:nil="true"></Description>
+      <CommitMessage xsi:nil="true"></CommitMessage>
+      <Publisher xsi:nil="true"></Publisher>
+      <AuthorizationReferences>[]</AuthorizationReferences>
+      <ConnectionReferences>{}</ConnectionReferences>
+      <DatabaseReferences>{}</DatabaseReferences>
+      <AppComponents>[]</AppComponents>
+      <AppComponentDependencies>[]</AppComponentDependencies>
+      <CanConsumeAppPass>1</CanConsumeAppPass>
+      <CanvasAppType>0</CanvasAppType>
+      <BypassConsent>0</BypassConsent>
+      <AdminControlBypassConsent>0</AdminControlBypassConsent>
+      <EmbeddedApp xsi:nil="true"></EmbeddedApp>
+      <IntroducedVersion>1.0</IntroducedVersion>
+      <CdsDependencies>{"cdsdependencies":[]}</CdsDependencies>
+      <IsCustomizable>1</IsCustomizable>
+      <BackgroundImageUri>/CanvasApps/new_whispertotext_6b00f_BackgroundImageUri</BackgroundImageUri>
+      <DocumentUri>/CanvasApps/new_whispertotext_6b00f_DocumentUri.msapp</DocumentUri>
+      <AdditionalUris>
+        <AdditionalUri>/CanvasApps/new_whispertotext_6b00f_AdditionalUris0_identity.json</AdditionalUri>
+      </AdditionalUris>
+    </CanvasApp>
+  </CanvasApps>
+  <connectionreferences>
+    <connectionreference connectionreferencelogicalname="new_sharedsharepointonline_6ecea">
+      <connectionreferencedisplayname>SharePoint JadeVersionSolution-6ecea</connectionreferencedisplayname>
+      <connectorid>/providers/Microsoft.PowerApps/apis/shared_sharepointonline</connectorid>
+      <iscustomizable>1</iscustomizable>
+      <promptingbehavior>0</promptingbehavior>
+      <statecode>0</statecode>
+      <statuscode>1</statuscode>
+    </connectionreference>
+    <connectionreference connectionreferencelogicalname="new_shareduiflow_7afb1">
+      <connectionreferencedisplayname>Desktop flows JadeVersionSolution-7afb1</connectionreferencedisplayname>
+      <connectorid>/providers/Microsoft.PowerApps/apis/shared_uiflow</connectorid>
+      <iscustomizable>1</iscustomizable>
+      <promptingbehavior>0</promptingbehavior>
+      <statecode>0</statecode>
+      <statuscode>1</statuscode>
+    </connectionreference>
+  </connectionreferences>
+  <Languages>
+    <Language>1041</Language>
+  </Languages>
+</ImportExportXml>

@@ -1,0 +1,190 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_sharepointonline": {
+        "api": {
+          "name": "shared_sharepointonline"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "new_sharedsharepointonline_6ecea"
+        },
+        "runtimeSource": "invoker"
+      },
+      "shared_uiflow": {
+        "api": {
+          "name": "shared_uiflow"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "new_shareduiflow_7afb1"
+        },
+        "runtimeSource": "invoker"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        }
+      },
+      "triggers": {
+        "manual": {
+          "type": "Request",
+          "description": "Connector plugs",
+          "kind": "PowerAppV2",
+          "inputs": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "title": "FileName",
+                  "type": "string",
+                  "x-ms-dynamically-added": true,
+                  "description": "Please enter your input",
+                  "x-ms-content-hint": "TEXT"
+                },
+                "text_1": {
+                  "title": "FolderName",
+                  "type": "string",
+                  "x-ms-dynamically-added": true,
+                  "description": "Please enter your input",
+                  "x-ms-content-hint": "TEXT"
+                },
+                "text_2": {
+                  "title": "Base64Audio",
+                  "type": "string",
+                  "x-ms-dynamically-added": true,
+                  "description": "Please enter your input",
+                  "x-ms-content-hint": "TEXT"
+                }
+              },
+              "required": [
+                "text",
+                "text_1",
+                "text_2"
+              ]
+            }
+          },
+          "metadata": {
+            "operationMetadataId": "21333a8e-b018-4e02-9a2b-b50da6d144a5"
+          }
+        }
+      },
+      "actions": {
+        "Create_file": {
+          "type": "OpenApiConnection",
+          "inputs": {
+            "parameters": {
+              "dataset": "https://johoce.sharepoint.com/sites/Data_Recorder",
+              "folderPath": "/Shared Documents/TEST_Transcripts",
+              "name": "@{triggerBody()?['text']}.wav",
+              "body": "@triggerBody()?['text_2']"
+            },
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+              "operationId": "CreateFile",
+              "connectionName": "shared_sharepointonline"
+            }
+          },
+          "runAfter": {},
+          "runtimeConfiguration": {
+            "contentTransfer": {
+              "transferMode": "Chunked"
+            }
+          },
+          "metadata": {
+            "operationMetadataId": "66d9a773-afd0-4b4b-a7a1-c4fd22b4eec4"
+          }
+        },
+        "Run_a_flow_built_with_Power_Automate_for_desktop": {
+          "type": "OpenApiConnection",
+          "inputs": {
+            "parameters": {
+              "uiFlowId": "88c7e81e-f8cb-f011-8544-6045bd6425cf",
+              "runMode": "attended",
+              "item/FileName": "@triggerBody()['text']",
+              "item/Base64Audio": "@triggerBody()['text_2']",
+              "item/FolderName": "C:\\Users\\Admin\\AppData\\Local\\Temp\\Whisper_Temp"
+            },
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_uiflow",
+              "operationId": "RunUIFlow_V2",
+              "connectionName": "shared_uiflow"
+            }
+          },
+          "runAfter": {
+            "Create_file": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "657e7134-5290-44fc-b7d6-dcdb27b03d04"
+          }
+        },
+        "Respond_to_a_Power_App_or_flow": {
+          "type": "Response",
+          "kind": "PowerApp",
+          "inputs": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "transcription": {
+                  "title": "Transcription",
+                  "x-ms-dynamically-added": true,
+                  "type": "string"
+                }
+              },
+              "additionalProperties": {}
+            },
+            "statusCode": 200,
+            "body": {
+              "transcription": "@outputs('Run_a_flow_built_with_Power_Automate_for_desktop')?['body/TranscriptionText']"
+            }
+          },
+          "runAfter": {
+            "Run_a_flow_built_with_Power_Automate_for_desktop": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "f317a046-2704-4206-949e-2e2d4ce20bb5"
+          }
+        },
+        "Create_file_1": {
+          "type": "OpenApiConnection",
+          "inputs": {
+            "parameters": {
+              "dataset": "https://johoce.sharepoint.com/sites/Data_Recorder",
+              "folderPath": "/Shared Documents/TEST_Transcripts",
+              "name": "@{triggerBody()?['text']}.txt",
+              "body": "@outputs('Run_a_flow_built_with_Power_Automate_for_desktop')?['body/TranscriptionText']"
+            },
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+              "operationId": "CreateFile",
+              "connectionName": "shared_sharepointonline"
+            }
+          },
+          "runAfter": {
+            "Respond_to_a_Power_App_or_flow": [
+              "Succeeded"
+            ]
+          },
+          "runtimeConfiguration": {
+            "contentTransfer": {
+              "transferMode": "Chunked"
+            }
+          }
+        }
+      }
+    },
+    "templateName": null
+  },
+  "schemaVersion": "1.0.0.0"
+}
