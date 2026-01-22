@@ -1,0 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: #213547;
+  background-color: #f8fafc;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+/* Waveform container styling */
+.waveform-container {
+  position: relative;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+/* Vowel error markers on waveform */
+.vowel-marker {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.vowel-marker.error {
+  background-color: #ef4444;
+}
+
+.vowel-marker.warning {
+  background-color: #f59e0b;
+}
+
+.vowel-marker.correct {
+  background-color: #22c55e;
+}
+
+/* Recording pulse animation */
+@keyframes pulse-recording {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
+}
+
+.recording-pulse {
+  animation: pulse-recording 1s ease-in-out infinite;
+}
+
+/* Score gauge */
+.score-gauge {
+  transition: width 0.5s ease-out;
+}
+
+/* Processing indicator */
+@keyframes processing {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.processing-indicator {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(59, 130, 246, 0.3),
+    transparent
+  );
+  background-size: 200% 100%;
+  animation: processing 1.5s infinite;
+}

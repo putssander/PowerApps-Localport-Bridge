@@ -1,0 +1,144 @@
+# English Pronunciation Teaching System
+# Configurable via environment variables for CPU/GPU deployment
+
+services:
+  # =============================================================================
+  # PRONUNCIATION API - Main orchestration service (FastAPI)
+  # =============================================================================
+  pronunciation-api:
+    build:
+      context: ./pronunciation-api
+      dockerfile: Dockerfile
+    container_name: pronunciation-api
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - WHISPER_URL=http://whisper-asr:9000
+      - PHONEME_URL=http://phoneme-service:8001
+      - EXERCISES_DIR=/app/exercises
+    volumes:
+      - exercises-data:/app/exercises
+      - ./pronunciation-api/app:/app/app:ro
+    depends_on:
+      whisper-asr:
+        condition: service_healthy
+      phoneme-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    # Security hardening
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:size=512m
+
+  # =============================================================================
+  # WHISPER ASR - Speech-to-text transcription
+  # =============================================================================
+  whisper-asr:
+    image: onerahmet/openai-whisper-asr-webservice:latest
+    container_name: whisper-asr
+    ports:
+      - "127.0.0.1:9002:9000"
+    environment:
+      - ASR_MODEL=${WHISPER_MODEL:-medium.en}
+      - ASR_ENGINE=openai_whisper
+      - KEEP_ALIVE=7200
+    volumes:
+      - whisper-cache:/root/.cache
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    restart: unless-stopped
+    # Security hardening
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:exec,size=2g
+    shm_size: '1g'
+    # GPU support is configured via docker-compose.gpu.yml override
+    # Use: docker compose -f docker-compose.yml -f docker-compose.gpu.yml up
+
+  # =============================================================================
+  # PHONEME SERVICE - wav2vec2 for direct phoneme extraction (no WhisperX)
+  # =============================================================================
+  phoneme-service:
+    build:
+      context: ./phoneme-service
+      dockerfile: Dockerfile
+      args:
+        - DEVICE=${DEVICE:-cpu}
+    container_name: phoneme-service
+    ports:
+      - "127.0.0.1:8001:8001"
+    environment:
+      - DEVICE=${DEVICE:-cpu}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - HF_HOME=/app/models
+      - TORCH_HOME=/app/models/torch
+    volumes:
+      - phoneme-models:/app/models
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s  # Models take time to load
+    restart: unless-stopped
+    # Security hardening
+    cap_drop:
+      - ALL
+    cap_add:
+      - SYS_NICE  # For GPU scheduling if needed
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:exec,size=2g
+    shm_size: '2g'
+    # GPU support is configured via docker-compose.gpu.yml override
+    # Use: docker compose -f docker-compose.yml -f docker-compose.gpu.yml up
+
+  # =============================================================================
+  # FRONTEND - React app served by Nginx
+  # =============================================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: pronunciation-frontend
+    ports:
+      - "127.0.0.1:3000:80"
+    depends_on:
+      - pronunciation-api
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  exercises-data:
+    name: pronunciation-exercises
+  whisper-cache:
+    name: whisper-model-cache
+  phoneme-models:
+    name: phoneme-model-cache
+
+networks:
+  default:
+    name: pronunciation-network
+    driver: bridge

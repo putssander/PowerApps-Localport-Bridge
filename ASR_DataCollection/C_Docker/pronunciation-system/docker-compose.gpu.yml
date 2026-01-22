@@ -1,0 +1,22 @@
+# Docker Compose GPU Override
+# For GPU-enabled deployment, rename this to docker-compose.override.yml
+# Or use: docker compose -f docker-compose.yml -f docker-compose.gpu.yml up
+
+services:
+  whisper-asr:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: ${GPU_COUNT:-1}
+              capabilities: [gpu]
+
+  phoneme-service:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: ${GPU_COUNT:-1}
+              capabilities: [gpu]

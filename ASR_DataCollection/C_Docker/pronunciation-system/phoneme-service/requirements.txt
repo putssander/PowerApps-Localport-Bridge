@@ -1,0 +1,25 @@
+# Core
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+pydantic==2.5.3
+python-multipart==0.0.6
+
+# Audio processing
+librosa==0.10.1
+soundfile==0.12.1
+numpy<2.0.0
+scipy>=1.10.0
+
+# ML Models - wav2vec2 for direct phoneme extraction
+# No WhisperX needed - we use the model directly via transformers
+torch>=2.0.0
+torchaudio>=2.0.0
+transformers>=4.36.0
+accelerate>=0.25.0
+
+# Grapheme to Phoneme for auto-IPA generation
+g2p-en==2.1.0
+
+# Utilities
+httpx==0.26.0
+aiofiles==23.2.1
